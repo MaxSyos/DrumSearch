@@ -2,32 +2,37 @@ import React, { useState } from 'react';
 import axios from 'axios';
 import { saveAs } from 'file-saver';
 import { Midi } from '@tonejs/midi';
-// Mapeamento EZdrummer (Toontrack) para grid/playback
+// Mapeamento EZdrummer (Americana EZX) para grid/playback
+// Ordem: Kick, Snare, Rimshot, HiHat (Fechado), HiHat (Aberto), HiHat (Pedal), Tom1, Tom2, FloorTom, Crash, Ride
 const EZDRUMMER_NOTES = [
-  36, // Kick
-  38, // Snare
-  42, // HiHat (Fechado)
-  46, // Open HiHat
-  23, // Mid HiHat (A#0)
-  50, // Tom1
-  47, // Tom2
-  43, // FloorTom
-  49, // Crash
-  51, // Ride
+  36, // Kick (C1)
+  38, // Snare (D1)
+  37, // Rimshot (Caixa Borda, C#1)
+  42, // HiHat Fechado (F#1)
+  46, // HiHat Aberto (A#1)
+  44, // HiHat Pedal (G#1)
+  50, // Tom1 (D2)
+  47, // Tom2 (B1)
+  43, // FloorTom (G1)
+  49, // Crash (C#2)
+  51, // Ride (D#2)
 ];
 
 // Mapeamento Cakewalk/GM para exportação
+// Novo mapeamento Cakewalk Bandlab para exportação
+// Ordem: Kick, Snare, Rimshot, HiHat (Fechado), HiHat (Aberto), HiHat (Pedal), Tom1, Tom2, FloorTom, Crash, Ride
 const CAKEWALK_NOTES = [
-  36, // Kick
-  38, // Snare
-  42, // HiHat (Fechado)
-  46, // Open HiHat
-  44, // Mid HiHat (G#1)
-  48, // Tom1
-  47, // Tom2
-  43, // FloorTom
-  49, // Crash
-  51, // Ride
+  36, // Kick (C2)
+  38, // Snare (D2)
+  37, // Rimshot (C#2)
+  42, // HiHat Fechado (F#2)
+  46, // HiHat Aberto (A#2)
+  44, // HiHat Pedal (G#2)
+  48, // Tom1 (C3)
+  47, // Tom2 (A2)
+  43, // FloorTom/Surdo (G2)
+  49, // Crash (C#3)
+  51, // Ride (D#3)
 ];
 
 // Gera um arquivo MIDI real a partir do grid, convertendo para Cakewalk/GM
@@ -40,7 +45,7 @@ async function gridToMidi(grid: boolean[][], steps: number, tempo: number = 120)
   for (let d = 0; d < grid.length; d++) {
     for (let s = 0; s < steps; s++) {
       if (grid[d][s]) {
-        // Converte EZdrummer para Cakewalk/GM na exportação
+        // Mapeia nota EZdrummer (entrada) para nota Cakewalk (exportação)
         track.addNote({
           midi: CAKEWALK_NOTES[d] || 36,
           time: s * stepDuration,
@@ -57,6 +62,7 @@ type Drum = { name: string; label: string; file: string };
 const DRUMS: Drum[] = [
   { name: 'Kick', label: 'Bumbo', file: 'kick.wav' },
   { name: 'Snare', label: 'Caixa', file: 'snare.wav' },
+  { name: 'Rimshot', label: 'Borda Caixa', file: 'snareRim.wav' },
   { name: 'HiHat', label: 'Chimbal', file: 'hihat.wav' },
   { name: 'OpenHiHat', label: 'Chimbal Aberto', file: 'openHihat.wav' },
   { name: 'MidHiHat', label: 'Chimbal Meio', file: 'midHihat.wav' },
@@ -73,6 +79,8 @@ const MAX_STEPS = 16;
 type SearchResult = { id: string; filename: string; distance: number };
 
 export default function DrumMachine() {
+  // Dark mode state
+  const [darkMode, setDarkMode] = useState<boolean>(true);
   // Carrega os samples de áudio
   const audioRefs = React.useRef<HTMLAudioElement[]>([]);
   // Referência para o som do metrônomo
@@ -128,14 +136,15 @@ export default function DrumMachine() {
   const keyToDrum: { [key: string]: number } = {
     q: 0, // Kick
     w: 1, // Snare
-    e: 2, // HiHat
-    a: 3, // OpenHiHat
-    s: 4, // MidHiHat
-    r: 5, // Tom1
-    t: 6, // Tom2
-    y: 7, // FloorTom
-    u: 8, // Crash
-    i: 9, // Ride
+    x: 2, // Rimshot (Borda Caixa)
+    e: 3, // HiHat
+    a: 4, // OpenHiHat
+    s: 5, // MidHiHat
+    r: 6, // Tom1
+    t: 7, // Tom2
+    y: 8, // FloorTom
+    u: 9, // Crash
+    i: 10, // Ride
   };
 
   // Atualiza o grid ao mudar steps (mantém o que for possível)
@@ -378,9 +387,84 @@ export default function DrumMachine() {
     });
   }, [volume, steps]);
 
+  // Cores para dark/light
+  const colors = darkMode
+    ? {
+        bg: '#181818',
+        fg: '#fff',
+        border: '#333',
+        padOn: '#0c0',
+        padOff: '#222',
+        padShadow: '2px 2px 8px #000a',
+        button: '#444',
+        buttonText: '#fff',
+        accent: '#0c0',
+        error: '#f55',
+      }
+    : {
+        bg: '#f5f5f5',
+        fg: '#222',
+        border: '#bbb',
+        padOn: '#0c0',
+        padOff: '#eee',
+        padShadow: '2px 2px 8px #8884',
+        button: '#fff',
+        buttonText: '#222',
+        accent: '#090',
+        error: '#c00',
+      };
+
   return (
-    <div style={{ maxWidth: 800, margin: '0 auto', padding: 24 }}>
-      <h2>Drum Machine</h2>
+    <div
+      style={{
+        maxWidth: 800,
+        margin: '0 auto',
+        padding: 24,
+        background: colors.bg,
+        color: colors.fg,
+        minHeight: '100vh',
+        position: 'relative',
+        transition: 'background 0.3s, color 0.3s',
+      }}
+    >
+      {/* Switch Dark Mode */}
+      <div style={{ position: 'absolute', top: 16, right: 24, zIndex: 10, display: 'flex', alignItems: 'center', gap: 8 }}>
+        <span style={{ fontSize: 18 }}>{darkMode ? '🌙' : '☀️'}</span>
+        <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
+          <input
+            type="checkbox"
+            checked={darkMode}
+            onChange={() => setDarkMode((v) => !v)}
+            style={{ display: 'none' }}
+          />
+          <span
+            style={{
+              width: 40,
+              height: 22,
+              borderRadius: 12,
+              background: darkMode ? '#222' : '#ccc',
+              display: 'inline-block',
+              position: 'relative',
+              transition: 'background 0.2s',
+            }}
+          >
+            <span
+              style={{
+                position: 'absolute',
+                left: darkMode ? 20 : 2,
+                top: 2,
+                width: 18,
+                height: 18,
+                borderRadius: '50%',
+                background: darkMode ? '#0c0' : '#fff',
+                boxShadow: '0 1px 4px #0004',
+                transition: 'left 0.2s, background 0.2s',
+              }}
+            />
+          </span>
+        </label>
+      </div>
+      <h2 style={{ color: colors.fg }}>Drum Machine</h2>
       <div style={{ marginBottom: 16, display: 'flex', alignItems: 'center', gap: 16 }}>
         <button
           onClick={() => setMetronomeOn((on) => !on)}
@@ -389,8 +473,8 @@ export default function DrumMachine() {
             width: 28,
             height: 28,
             borderRadius: '50%',
-            background: metronomeOn ? '#0c0' : '#888',
-            color: '#fff',
+            background: metronomeOn ? colors.accent : colors.border,
+            color: colors.buttonText,
             border: 'none',
             fontWeight: 'bold',
             fontSize: 16,
@@ -399,7 +483,8 @@ export default function DrumMachine() {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            boxShadow: metronomeOn ? '0 0 4px #0c0' : 'none',
+            boxShadow: metronomeOn ? `0 0 4px ${colors.accent}` : 'none',
+            transition: 'background 0.2s, color 0.2s',
           }}
         >
           <span role="img" aria-label="Metrônomo">{metronomeOn ? '🔊' : '🔇'}</span>
@@ -435,7 +520,7 @@ export default function DrumMachine() {
           <span style={{ minWidth: 32, display: 'inline-block', textAlign: 'right' }}>{Math.round(volume * 100)}%</span>
         </div>
       </div>
-      <div style={{ marginBottom: 16, fontSize: 14, color: '#555' }}>
+      <div style={{ marginBottom: 16, fontSize: 14, color: darkMode ? '#aaa' : '#555' }}>
         <b>Teclas rápidas:</b> Q (Bumbo), W (Caixa), E (Chimbal), A (Chimbal Aberto), S (Chimbal Meio), R (Tom1), T (Tom2), Y (Surdo), U (Crash), I (Ride)
       </div>
       <div style={{ display: 'flex', gap: 16, marginBottom: 24 }}>
@@ -446,12 +531,13 @@ export default function DrumMachine() {
               width: 80,
               height: 80,
               borderRadius: '50%',
-              background: '#c00',
-              color: '#fff',
+              background: colors.button,
+              color: colors.buttonText,
               fontWeight: 'bold',
-              border: '2px solid #333',
-              boxShadow: '2px 2px 8px #0004',
-              outline: currentStep === idx ? '3px solid #ff0' : 'none',
+              border: `2px solid ${colors.border}`,
+              boxShadow: colors.padShadow,
+              outline: currentStep === idx ? `3px solid ${colors.accent}` : 'none',
+              transition: 'background 0.2s, color 0.2s, border 0.2s',
             }}
             onClick={() => handleDrumClick(idx)}
           >
@@ -477,12 +563,13 @@ export default function DrumMachine() {
                   <td
                     key={sIdx}
                     style={{
-                      background: grid[dIdx][sIdx] ? '#0c0' : '#222',
-                      border: '1px solid #555',
+                      background: grid[dIdx][sIdx] ? colors.padOn : colors.padOff,
+                      border: `1px solid ${colors.border}`,
                       width: 32,
                       height: 32,
                       opacity: currentStep === sIdx && isPlaying ? 1 : 0.7,
                       cursor: 'pointer',
+                      transition: 'background 0.2s, border 0.2s',
                     }}
                     onClick={() => {
                       setGrid((prev) => {
@@ -500,34 +587,34 @@ export default function DrumMachine() {
         </table>
       </div>
       <div style={{ marginTop: 24, display: 'flex', gap: 16 }}>
-        <button onClick={handlePlay} style={{ fontSize: 18, padding: '8px 32px' }}>
+        <button onClick={handlePlay} style={{ fontSize: 18, padding: '8px 32px', background: colors.button, color: colors.buttonText, borderRadius: 4, border: `1px solid ${colors.border}` }}>
           {isPlaying ? 'Parar' : 'Play/Rec'}
         </button>
-        <button onClick={handleSearch} style={{ fontSize: 18, padding: '8px 32px', background: '#06c', color: '#fff' }} disabled={loading}>
+        <button onClick={handleSearch} style={{ fontSize: 18, padding: '8px 32px', background: colors.accent, color: colors.buttonText, borderRadius: 4, border: `1px solid ${colors.border}` }} disabled={loading}>
           Buscar Similaridade
         </button>
-        <button onClick={handleExport} style={{ fontSize: 18, padding: '8px 32px', background: '#f90', color: '#fff' }} disabled={loading}>
+        <button onClick={handleExport} style={{ fontSize: 18, padding: '8px 32px', background: '#f90', color: '#fff', borderRadius: 4, border: `1px solid ${colors.border}` }} disabled={loading}>
           Exportar MIDI
         </button>
-        <label style={{ fontSize: 18, padding: '8px 32px', background: '#090', color: '#fff', borderRadius: 4, cursor: 'pointer', display: 'inline-block' }}>
+        <label style={{ fontSize: 18, padding: '8px 32px', background: colors.accent, color: colors.buttonText, borderRadius: 4, cursor: 'pointer', display: 'inline-block', border: `1px solid ${colors.border}` }}>
           Upload MIDI
           <input type="file" accept=".mid,.midi" style={{ display: 'none' }} onChange={handleUpload} />
         </label>
-        <button onClick={handleClear} style={{ fontSize: 18, padding: '8px 32px', background: '#888', color: '#fff' }} disabled={loading}>
+        <button onClick={handleClear} style={{ fontSize: 18, padding: '8px 32px', background: colors.border, color: colors.buttonText, borderRadius: 4, border: `1px solid ${colors.border}` }} disabled={loading}>
           Limpar Loop
         </button>
       </div>
       {importedRhythm && (
-        <div style={{ marginTop: 8, color: '#090', fontWeight: 'bold' }}>
+        <div style={{ marginTop: 8, color: colors.accent, fontWeight: 'bold' }}>
           Arquivo MIDI importado será usado na busca de similaridade.
         </div>
       )}
-      {loading && <p>Buscando...</p>}
-      {error && <p style={{ color: 'red' }}>{error}</p>}
+      {loading && <p style={{ color: colors.fg }}>Buscando...</p>}
+      {error && <p style={{ color: colors.error }}>{error}</p>}
       {results.length > 0 && (
         <div style={{ marginTop: 32 }}>
-          <h3>Resultados de Similaridade</h3>
-          <table style={{ borderCollapse: 'collapse', width: '100%' }}>
+          <h3 style={{ color: colors.fg }}>Resultados de Similaridade</h3>
+          <table style={{ borderCollapse: 'collapse', width: '100%', background: colors.bg, color: colors.fg }}>
             <thead>
               <tr>
                 <th>ID</th>

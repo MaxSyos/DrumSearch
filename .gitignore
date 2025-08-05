@@ -67,12 +67,7 @@ coverage/
 *.xz
 *.7z
 
-# MIDI/Audio temporários
-*.mid
-*.midi
-*.wav
-*.mp3
-*.ogg
+
 
 # Docker Compose override
 /docker-compose.override.yml
@@ -90,12 +85,6 @@ api/app/search/__pycache__/
 api/app/upload/__pycache__/
 api/app/vector/__pycache__/
 
-# Ignore exported MIDI loops
-/web/loop.mid
 
-# Ignore exported files
-/web/*.mid
-/web/*.midi
-/web/*.wav
-/web/*.mp3
-/web/*.ogg
+
+
