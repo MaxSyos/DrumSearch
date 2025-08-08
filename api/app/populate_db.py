@@ -1,4 +1,7 @@
+
 import os
+import tempfile
+import zipfile
 from app.db import SessionLocal
 from app.models import MidiFile
 import pretty_midi
@@ -22,8 +25,11 @@ def extract_bpm(midi_path):
         return float(midi.get_tempo_changes()[1][0])
     return 120.0
 
+
 def populate_from_folder(root_folder):
     db = SessionLocal()
+    added = 0
+    errors = []
     for dirpath, _, filenames in os.walk(root_folder):
         for fname in filenames:
             if fname.lower().endswith(('.mid', '.midi')):
@@ -40,15 +46,38 @@ def populate_from_folder(root_folder):
                         data=midi_bytes
                     )
                     db.add(midi_file)
-                    print(f'Adicionado: {fname}')
+                    added += 1
                 except Exception as e:
-                    print(f'Erro em {fname}: {e}')
+                    errors.append(f'Erro em {fname}: {e}')
     db.commit()
     db.close()
+    return added, errors
+
+# Função principal para processar arquivo zipado
+
+
+# Função principal para processar arquivo zipado
+def populate_from_zip(zip_path):
+    with tempfile.TemporaryDirectory() as tmpdir:
+        try:
+            with zipfile.ZipFile(zip_path, 'r') as zip_ref:
+                zip_ref.extractall(tmpdir)
+        except Exception as e:
+            return 0, [f'Erro ao descompactar: {e}']
+        return populate_from_folder(tmpdir)
 
 if __name__ == '__main__':
     import sys
     if len(sys.argv) < 2:
-        print('Uso: python populate_db.py <pasta>')
+        print('Uso: python populate_db.py <pasta_ou_zip>')
     else:
-        populate_from_folder(sys.argv[1])
+        path = sys.argv[1]
+        if path.lower().endswith('.zip'):
+            added, errors = populate_from_zip(path)
+        else:
+            added, errors = populate_from_folder(path)
+        print(f'Arquivos adicionados: {added}')
+        if errors:
+            print('Ocorreram erros:')
+            for err in errors:
+                print(err)
